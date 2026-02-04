@@ -1,191 +1,102 @@
+import { PrismaClient } from '@prisma/client';
 import 'dotenv/config';
-import { pool } from '../lib/db';
 import { mockCollections, mockMenu, mockPages, mockProducts } from '../lib/shopify/mock';
 
+const prisma = new PrismaClient();
+
 async function seed() {
-  const client = await pool.connect();
-
   try {
-    console.log('Starting seed...');
+    console.log('Starting DB seed with Prisma...');
 
-    // Begin transaction
-    await client.query('BEGIN');
+    // 1. Clean up existing data
+    console.log('Deleting existing data...');
+    // Delete in order to respect foreign keys if we had stricter constraints
+    await prisma.productVariant.deleteMany();
+    await prisma.product.deleteMany();
+    await prisma.collection.deleteMany();
+    await prisma.page.deleteMany();
+    await prisma.menu.deleteMany();
 
-    // 1. Clean up existing tables
-    console.log('Dropping existing tables...');
-    await client.query(`
-      DROP TABLE IF EXISTS product_variants CASCADE;
-      DROP TABLE IF EXISTS products CASCADE;
-      DROP TABLE IF EXISTS collections CASCADE;
-      DROP TABLE IF EXISTS pages CASCADE;
-      DROP TABLE IF EXISTS menus CASCADE;
-    `);
-
-    // 2. Create tables
-    console.log('Creating tables...');
-    
-    // Products
-    await client.query(`
-      CREATE TABLE products (
-        id TEXT PRIMARY KEY,
-        handle TEXT UNIQUE NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT,
-        description_html TEXT,
-        available_for_sale BOOLEAN DEFAULT true,
-        price_range JSONB,
-        featured_image JSONB,
-        images JSONB,
-        options JSONB,
-        seo JSONB,
-        tags TEXT[],
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Product Variants
-    await client.query(`
-      CREATE TABLE product_variants (
-        id TEXT PRIMARY KEY,
-        product_id TEXT REFERENCES products(id) ON DELETE CASCADE,
-        title TEXT NOT NULL,
-        available_for_sale BOOLEAN DEFAULT true,
-        selected_options JSONB,
-        price JSONB
-      );
-    `);
-
-    // Collections
-    await client.query(`
-      CREATE TABLE collections (
-        handle TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        seo JSONB,
-        path TEXT,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Pages
-    await client.query(`
-      CREATE TABLE pages (
-        id TEXT PRIMARY KEY,
-        handle TEXT UNIQUE NOT NULL,
-        title TEXT NOT NULL,
-        body TEXT,
-        body_summary TEXT,
-        seo JSONB,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Menus
-    await client.query(`
-      CREATE TABLE menus (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        path TEXT NOT NULL
-      );
-    `);
-
-    // 3. Insert Data
+    // 2. Insert Data
     console.log('Inserting data...');
 
     // Insert Products & Variants
     for (const product of mockProducts) {
-      await client.query(`
-        INSERT INTO products (
-          id, handle, title, description, description_html, available_for_sale, 
-          price_range, featured_image, images, options, seo, tags, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-      `, [
-        product.id,
-        product.handle,
-        product.title,
-        product.description,
-        product.descriptionHtml,
-        product.availableForSale,
-        JSON.stringify(product.priceRange),
-        JSON.stringify(product.featuredImage),
-        JSON.stringify(product.images),
-        JSON.stringify(product.options),
-        JSON.stringify(product.seo),
-        product.tags,
-        product.updatedAt
-      ]);
-
-      if (product.variants) {
-        for (const variant of product.variants) {
-          await client.query(`
-            INSERT INTO product_variants (
-              id, product_id, title, available_for_sale, selected_options, price
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-          `, [
-            variant.id,
-            product.id,
-            variant.title,
-            variant.availableForSale,
-            JSON.stringify(variant.selectedOptions),
-            JSON.stringify(variant.price)
-          ]);
+      await prisma.product.create({
+        data: {
+          id: product.id,
+          handle: product.handle,
+          title: product.title,
+          description: product.description,
+          descriptionHtml: product.descriptionHtml,
+          availableForSale: product.availableForSale,
+          priceRange: product.priceRange as any,
+          featuredImage: product.featuredImage as any,
+          images: product.images as any,
+          options: product.options as any,
+          seo: product.seo as any,
+          tags: product.tags,
+          updatedAt: new Date(product.updatedAt),
+          variants: {
+            create: product.variants.map(v => ({
+              id: v.id,
+              title: v.title,
+              availableForSale: v.availableForSale,
+              selectedOptions: v.selectedOptions as any,
+              price: v.price as any
+            }))
+          }
         }
-      }
+      });
     }
 
     // Insert Collections
     for (const collection of mockCollections) {
-      await client.query(`
-        INSERT INTO collections (
-          handle, title, description, seo, path, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-      `, [
-        collection.handle,
-        collection.title,
-        collection.description,
-        JSON.stringify(collection.seo),
-        collection.path,
-        collection.updatedAt
-      ]);
+      await prisma.collection.create({
+        data: {
+          handle: collection.handle,
+          title: collection.title,
+          description: collection.description,
+          seo: collection.seo as any,
+          path: collection.path,
+          updatedAt: new Date(collection.updatedAt)
+        }
+      });
     }
 
     // Insert Pages
     for (const page of mockPages) {
-      await client.query(`
-        INSERT INTO pages (
-          id, handle, title, body, body_summary, seo, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        page.id,
-        page.handle,
-        page.title,
-        page.body,
-        page.bodySummary,
-        JSON.stringify(page.seo),
-        page.createdAt,
-        page.updatedAt
-      ]);
+      await prisma.page.create({
+        data: {
+          id: page.id,
+          handle: page.handle,
+          title: page.title,
+          body: page.body,
+          bodySummary: page.bodySummary,
+          seo: page.seo as any,
+          createdAt: new Date(page.createdAt),
+          updatedAt: new Date(page.updatedAt)
+        }
+      });
     }
 
     // Insert Menu
     for (const item of mockMenu) {
-      await client.query(`
-        INSERT INTO menus (title, path) VALUES ($1, $2)
-      `, [item.title, item.path]);
+      await prisma.menu.create({
+        data: {
+          title: item.title,
+          path: item.path
+        }
+      });
     }
 
-    // Commit transaction
-    await client.query('COMMIT');
     console.log('Seed completed successfully!');
 
   } catch (err) {
-    await client.query('ROLLBACK');
     console.error('Error seeding database:', err);
     process.exit(1);
   } finally {
-    client.release();
-    await pool.end();
+    await prisma.$disconnect();
   }
 }
 

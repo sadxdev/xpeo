@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+model Product {
+  id              String   @id
+  handle          String   @unique
+  title           String
+  description     String?
+  descriptionHtml String?  @map("description_html")
+  availableForSale Boolean  @default(true) @map("available_for_sale")
+  priceRange      Json?    @map("price_range")
+  featuredImage   Json?    @map("featured_image")
+  images          Json?
+  options         Json?
+  seo             Json?
+  tags            String[]
+  updatedAt       DateTime @default(now()) @map("updated_at")
+
+  variants        ProductVariant[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id              String   @id
+  productId       String   @map("product_id")
+  title           String
+  availableForSale Boolean  @default(true) @map("available_for_sale")
+  selectedOptions Json?    @map("selected_options")
+  price           Json?
+
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_variants")
+}
+
+model Collection {
+  handle      String   @id
+  title       String
+  description String?
+  seo         Json?
+  path        String?
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("collections")
+}
+
+model Page {
+  id          String   @id
+  handle      String   @unique
+  title       String
+  body        String?
+  bodySummary String?  @map("body_summary")
+  seo         Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("pages")
+}
+
+model Menu {
+  id    Int    @id @default(autoincrement())
+  title String
+  path  String
+
+  @@map("menus")
+}

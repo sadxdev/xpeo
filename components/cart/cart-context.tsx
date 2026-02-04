@@ -216,16 +216,22 @@ export function useCart() {
     cartReducer,
   );
 
-  const updateCartItem = (merchandiseId: string, updateType: UpdateType) => {
-    updateOptimisticCart({
-      type: "UPDATE_ITEM",
-      payload: { merchandiseId, updateType },
-    });
-  };
+  const updateCartItem = useMemo(
+    () => (merchandiseId: string, updateType: UpdateType) => {
+      updateOptimisticCart({
+        type: "UPDATE_ITEM",
+        payload: { merchandiseId, updateType },
+      });
+    },
+    [updateOptimisticCart],
+  );
 
-  const addCartItem = (variant: ProductVariant, product: Product) => {
-    updateOptimisticCart({ type: "ADD_ITEM", payload: { variant, product } });
-  };
+  const addCartItem = useMemo(
+    () => (variant: ProductVariant, product: Product) => {
+      updateOptimisticCart({ type: "ADD_ITEM", payload: { variant, product } });
+    },
+    [updateOptimisticCart],
+  );
 
   return useMemo(
     () => ({
@@ -233,6 +239,6 @@ export function useCart() {
       updateCartItem,
       addCartItem,
     }),
-    [optimisticCart],
+    [optimisticCart, updateCartItem, addCartItem],
   );
 }
