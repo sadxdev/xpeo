@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import 'dotenv/config';
-import { mockCollections, mockMenu, mockPages, mockProducts } from '../lib/shopify/mock';
+import { mockCollections, mockMenu, mockPages, mockProducts } from '../lib/commerce/mock';
 
 const prisma = new PrismaClient();
 
